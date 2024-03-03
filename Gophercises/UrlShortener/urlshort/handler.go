@@ -7,14 +7,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type YAMLUrl struct {
-	Path string `yaml:"path"`
-	URL  string `yaml:"url"`
-}
-
-type JSONUrl struct {
-	Path string `json:"path"`
-	URL  string `json:"url"`
+type URLPath struct {
+	Path string `json:"path" yaml:"path"`
+	URL  string `json:"url" yaml:"url`
 }
 
 // MapHandler will return an http.HandlerFunc (which also
@@ -49,41 +44,51 @@ func MapHandler(pathsToUrls map[string]string, fallback http.Handler) http.Handl
 //   - path: /some-path
 //     url: https://www.some-url.com/demo
 func YAMLHandler(yml []byte, fallback http.Handler) (http.HandlerFunc, error) {
-	var y []YAMLUrl
-	err := yaml.Unmarshal(yml, &y)
+	// Converting YAML byte stream to slice of structs
+	yd, err := parseYAML(yml)
 	if err != nil {
 		return nil, err
 	}
-	return func(w http.ResponseWriter, r *http.Request) {
-		path := r.URL.Path
-		// Iterating through each struct unmarshaled from the YAML input to find a match
-		// if we fail to find one, we go through the fallback chain.
-		for _, u := range y {
-			if u.Path == path {
-				http.Redirect(w, r, u.URL, http.StatusFound)
-				return
-			}
-		}
-		fallback.ServeHTTP(w, r)
-	}, nil
+	// Creating map in format wanted by our MapHandler
+	pathsToUrls := buildMapFromURLStructs(yd)
+	// Returning a MapHandler
+	return MapHandler(pathsToUrls, fallback), nil
+}
+
+func parseYAML(data []byte) ([]URLPath, error) {
+	var y []URLPath
+	err := yaml.Unmarshal(data, &y)
+	if err != nil {
+		return nil, err
+	}
+	return y, nil
 }
 
 func JSONHandler(jsonData []byte, fallback http.Handler) (http.HandlerFunc, error) {
-	var j []JSONUrl
-	err := json.Unmarshal(jsonData, &j)
+	// Converting JSON byte stream to slice of structs
+	jd, err := parseJSON(jsonData)
 	if err != nil {
 		return nil, err
 	}
-	return func(w http.ResponseWriter, r *http.Request) {
-		path := r.URL.Path
-		// Iterating through each struct unmarshaled from the JSON input to find a match
-		// if we fail to find one, we go through the fallback chain.
-		for _, u := range j {
-			if u.Path == path {
-				http.Redirect(w, r, u.URL, http.StatusFound)
-				return
-			}
-		}
-		fallback.ServeHTTP(w, r)
-	}, nil
+	// Creating map in format wanted by our MapHandler
+	pathsToUrls := buildMapFromURLStructs(jd)
+	// Returning a MapHandler
+	return MapHandler(pathsToUrls, fallback), nil
+}
+
+func parseJSON(data []byte) ([]URLPath, error) {
+	var j []URLPath
+	err := json.Unmarshal(data, &j)
+	if err != nil {
+		return nil, err
+	}
+	return j, nil
+}
+
+func buildMapFromURLStructs(urls []URLPath) map[string]string {
+	pathsToUrls := make(map[string]string)
+	for _, u := range urls {
+		pathsToUrls[u.Path] = u.URL
+	}
+	return pathsToUrls
 }
