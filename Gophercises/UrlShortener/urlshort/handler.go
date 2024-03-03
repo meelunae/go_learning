@@ -9,7 +9,7 @@ import (
 
 type URLPath struct {
 	Path string `json:"path" yaml:"path"`
-	URL  string `json:"url" yaml:"url`
+	URL  string `json:"url" yaml:"url"`
 }
 
 // MapHandler will return an http.HandlerFunc (which also
